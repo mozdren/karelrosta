@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project( "OpenCV Template" )
+project( "Measure" )
 
 # dependencies
 
@@ -11,8 +11,8 @@ find_package( OpenCV REQUIRED )
 
 # executables and linked libraries
 
-add_executable( opencv_test main.cpp )
-target_link_libraries( opencv_test ${OpenCV_LIBS} )
+add_executable( measure main.cpp )
+target_link_libraries( measure ${OpenCV_LIBS} )
 
 # Required Resources
 
@@ -25,4 +25,4 @@ file( COPY ${OPENCV_DLLS} DESTINATION "Debug/" )
 file( COPY "resources/lenna.png" DESTINATION "Release/" )
 file( COPY "resources/lenna.png" DESTINATION "Debug/" )
 
-set_property( TARGET opencv_test PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$(Configuration)" )
+set_property( TARGET measure PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "$(Configuration)" )
