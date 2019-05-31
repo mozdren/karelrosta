@@ -1,0 +1,3 @@
+C:/developement/opencv_test/bin/CMakeFiles/opencv_test.dir
+C:/developement/opencv_test/bin/CMakeFiles/ALL_BUILD.dir
+C:/developement/opencv_test/bin/CMakeFiles/ZERO_CHECK.dir
