@@ -72,11 +72,11 @@ void perona_malik::compute_cond(const float lambda){
 }
 
 void perona_malik::decompose(cv::Mat &img){
-    int x,y,i;
+    int i;
     if (this->mat_switch) i = 0;
     else i = 1;
-    for (y=0;y<this->height;y++){
-        for (x=0;x<this->width;x++){
+    for (auto y = 0;y<this->height;y++){
+        for (auto x = 0;x<this->width;x++){
             auto pixel = img.at<cv::Vec3b>(y, x);
             this->r[i].at<float>(y, x) = static_cast<float>(pixel[0]);
             this->g[i].at<float>(y, x) = static_cast<float>(pixel[1]);

@@ -153,7 +153,7 @@ void transform_to_3d(double *points, const double ra, const double rb, const dou
     to_view_port(points, width, height, chip_w, chip_h);
 }
 
-inline void get_corneres_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_point> &points){
+inline void get_corners_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_point> &points){
 	printf("getting corners and edges\n");
 	fflush(stdout);
 	/*********************** GOOD FEATURES TO TRACK **************************/
@@ -185,11 +185,11 @@ inline void get_corneres_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_
 	printf("DONE\n");
 	fflush(stdout);
 	
-	cv::Mat out = cv::Mat(img);
+	cv::Mat out = img.clone();
 	printf("Running canny...");
 	fflush(stdout);
 	Canny(img, out, 80, 150);
-    cv::imwrite("canny.png", out);
+    imwrite("canny.png", out);
 	printf("DONE\n");
 	fflush(stdout);
 	edges = 0;
@@ -200,7 +200,7 @@ inline void get_corneres_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_
 	printf("DONE\n");
 	fflush(stdout);
 
-    auto test = cv::Mat(edges);
+    auto test = edges.clone();
 
     for (auto& corner : corners)
     {
@@ -216,9 +216,9 @@ inline void get_corneres_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_
 
 void recursive_edge_mover(cv::Mat &src, cv::Mat &dest, const int x, const int y){
 	if (x < 0 || y < 0 || x > src.cols - 1 || y > src.rows - 1) return;
-	if (src.at<cv::Vec3b>(x,y)[0] != 255) return;
-	dest.at<cv::Vec3b>(x, y) = 255;
-	src.at<cv::Vec3b>(x, y) = 0;
+	if (src.at<uchar>(x,y) != 255) return;
+	dest.at<uchar>(x, y) = 255;
+	src.at<uchar>(x, y) = 0;
 	recursive_edge_mover(src, dest, x + 1, y);
 	recursive_edge_mover(src, dest, x - 1, y);
 	recursive_edge_mover(src, dest, x, y + 1);
@@ -238,9 +238,9 @@ void non_recursive_edge_mover(cv::Mat &src, cv::Mat &dest, const int x, const in
             active_point.y < 0 ||
             active_point.x > src.cols - 1 ||
             active_point.y > src.rows - 1) continue;
-		if (src.at<cv::Vec3b>(active_point.y,active_point.x)[0] != 255) continue;
-		dest.at<cv::Vec3b>(active_point.y, active_point.x) = 255;
-		src.at<cv::Vec3b>(active_point.y, active_point.x) = 0;
+		if (src.at<uchar>(active_point.y,active_point.x) != 255) continue;
+		dest.at<uchar>(active_point.y, active_point.x) = 255;
+		src.at<uchar>(active_point.y, active_point.x) = 0;
 		my_point next;
 		next.x = active_point.x + 1; next.y = active_point.y;
 		to_process.push(next);
@@ -290,7 +290,7 @@ void find_all_rects(cv::Mat &edges, std::vector<my_point> &points, std::vector<m
 	}
 }
 
-void transformImage(cv::Mat &src, cv::Mat &des, cv::Point *points){
+void transform_image(cv::Mat &src, cv::Mat &des, cv::Point *points){
     cv::Mat input_mat = cv::Mat(4,2,CV_32FC1);
     cv::Mat output_mat = cv::Mat(4,2,CV_32FC1);
     cv::Mat H = cv::Mat(3,3,CV_32FC1);
@@ -321,7 +321,7 @@ float square_error_sum(cv::Mat &img, cv::Mat &img2){
     auto sum = 0.0f;
 	for (auto y = 0;y<img.rows;y++){
 		for (auto x = 0;x<img.cols;x++){
-            uchar diff = img.at<uchar>(x, y) - img2.at<uchar>(x, y);
+		    const uchar diff = img.at<uchar>(x, y) - img2.at<uchar>(x, y);
             sum += diff * diff;
 		}
 	}
@@ -329,30 +329,30 @@ float square_error_sum(cv::Mat &img, cv::Mat &img2){
 }
 
 float get_error(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
-	cv::Mat data = cv::Mat(pattern);
+    auto data = pattern.clone();
 	cv::Point points[4];
 	points[0] = cv::Point(rect->points[0].x,rect->points[0].y);
 	points[1] = cv::Point(rect->points[1].x,rect->points[1].y);
 	points[2] = cv::Point(rect->points[2].x,rect->points[2].y);
 	points[3] = cv::Point(rect->points[3].x,rect->points[3].y);
-	transformImage(img, data, points);
+	transform_image(img, data, points);
 	float err = square_error_sum(pattern, data);
 	err /= data.cols * data.rows;
 	return err;
 }
 
 float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
-	cv::Mat data = cv::Mat(pattern);
+	cv::Mat data = pattern.clone();
 	cv::Point points[4];
 	points[0] = cv::Point(rect->points[0].x,rect->points[0].y);
 	points[1] = cv::Point(rect->points[1].x,rect->points[1].y);
 	points[2] = cv::Point(rect->points[2].x,rect->points[2].y);
 	points[3] = cv::Point(rect->points[3].x,rect->points[3].y);
-	transformImage(img, data, points);
+	transform_image(img, data, points);
     auto min_err = square_error_sum(pattern, data);
 	min_err /= data.cols * data.rows;
     auto ack_err = min_err;
-    int an=0,bn=1,cn=2,dn=3;
+    auto an = 0, bn = 1, cn = 2, dn = 3;
 	for (auto a = 0;a<4;a++){
 		for (auto b = 0;b<4;b++){
 			if (b==a) continue;
@@ -364,7 +364,7 @@ float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 					points[1] = cv::Point(rect->points[b].x,rect->points[b].y);
 					points[2] = cv::Point(rect->points[c].x,rect->points[c].y);
 					points[3] = cv::Point(rect->points[d].x,rect->points[d].y);
-					transformImage(img, data, points);
+					transform_image(img, data, points);
 					ack_err = square_error_sum(pattern, data);
 					ack_err /= (data.cols * data.rows);
 					if (ack_err < min_err){
@@ -378,10 +378,10 @@ float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 			}
 		}
 	}
-    my_point pan = rect->points[an];
-	my_point pbn = rect->points[bn];
-	my_point pcn = rect->points[cn];
-	my_point pdn = rect->points[dn];
+    auto pan = rect->points[an];
+    auto pbn = rect->points[bn];
+    auto pcn = rect->points[cn];
+    auto pdn = rect->points[dn];
 	rect->points[0] = pan;
 	rect->points[1] = pbn;
 	rect->points[2] = pcn;
@@ -390,7 +390,7 @@ float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 }
 
 void draw_rect(cv::Mat &img, my_rect rect){
-	line(img, cv::Point(rect.points[0].x, rect.points[0].y), cv::Point(rect.points[1].x, rect.points[1].y), cv::Scalar(0), 10);
+    line(img, cv::Point(rect.points[0].x, rect.points[0].y), cv::Point(rect.points[1].x, rect.points[1].y), cv::Scalar(0), 10);
     line(img, cv::Point(rect.points[0].x, rect.points[0].y), cv::Point(rect.points[1].x, rect.points[1].y), cv::Scalar(255), 4);
     line(img, cv::Point(rect.points[1].x, rect.points[1].y), cv::Point(rect.points[2].x, rect.points[2].y), cv::Scalar(0), 10);
     line(img, cv::Point(rect.points[1].x, rect.points[1].y), cv::Point(rect.points[2].x, rect.points[2].y), cv::Scalar(255), 4);
@@ -398,7 +398,7 @@ void draw_rect(cv::Mat &img, my_rect rect){
     line(img, cv::Point(rect.points[2].x, rect.points[2].y), cv::Point(rect.points[3].x, rect.points[3].y), cv::Scalar(255), 4);
     line(img, cv::Point(rect.points[3].x, rect.points[3].y), cv::Point(rect.points[0].x, rect.points[0].y), cv::Scalar(0), 10);
     line(img, cv::Point(rect.points[3].x, rect.points[3].y), cv::Point(rect.points[0].x, rect.points[0].y), cv::Scalar(255), 4);
-	circle(img, cv::Point(rect.points[0].x, rect.points[0].y), 20, cv::Scalar(128), -1);
+    circle(img, cv::Point(rect.points[0].x, rect.points[0].y), 20, cv::Scalar(128), -1);
     circle(img, cv::Point(rect.points[0].x, rect.points[0].y), 20, cv::Scalar(0), 3);
     circle(img, cv::Point(rect.points[1].x, rect.points[1].y), 20, cv::Scalar(255), -1);
     circle(img, cv::Point(rect.points[1].x, rect.points[1].y), 20, cv::Scalar(0), 3);
@@ -501,8 +501,8 @@ double getDistError2(chromosome *chr, double *data, int paramsize){
 
 double getDistError(chromosome *ch, double *data, int paramsize){
 	double t[4];
-	double d = data[15];
-	double d2 = sqrt(d*d + d*d);
+    auto d = data[15];
+    auto d2 = sqrt(d*d + d*d);
 	t[0] = ch->genes[0];
 	t[1] = ch->genes[1];
 	t[2] = ch->genes[2];
@@ -539,16 +539,16 @@ double getDistError(chromosome *ch, double *data, int paramsize){
 	distances[3] = distance_3d(P[3].val[0],P[3].val[1],P[3].val[2],P[0].val[0],P[0].val[1],P[0].val[2]);
 	distances[4] = distance_3d(P[0].val[0],P[0].val[1],P[2].val[2],P[2].val[0],P[2].val[1],P[2].val[2]);
 	distances[5] = distance_3d(P[1].val[0],P[1].val[1],P[1].val[2],P[3].val[0],P[3].val[1],P[3].val[2]);
-	double maxerr = 0.0;
-	double ackerr = 0.0;
+    auto max_error = 0.0;
+    auto ack_error = 0.0;
 	int i;
 	for (i=0;i<4;i++){
-		ackerr += (distances[i] - d)*(distances[i] - d);
+		ack_error += (distances[i] - d)*(distances[i] - d);
 	}
 	for (i=4;i<6;i++){
-		ackerr += (distances[i] - d2)*(distances[i] - d2);
+		ack_error += (distances[i] - d2)*(distances[i] - d2);
 	}
-	return ackerr;
+	return ack_error;
 }
 
 void find_rect_3D_position(my_rect *rect, cv::Mat &image, double markSize, double focalDistance, double chipWidth, double chipHeight, FILE *file = NULL){
@@ -705,30 +705,29 @@ int main(){
 	imwrite("RGB_orig.png", imgRGB);
 	printf("Filtering image...");
 	fflush(stdout);
-	pm.filter(imgRGB, 20, 50); // 20, 50
+	pm.filter(imgRGB, 20, 1); // 20, 50
 	printf("DONE\n");
     imwrite("RGB_filter.png", pm.output);
 	cvtColor(pm.output, img, cv::COLOR_RGB2GRAY);
     auto pattern = cv::imread("template.png", 0);
 	
 	imwrite("smooth.png", img);
-	
-	cv::Mat edges = cv::Mat(img);
+
+    auto edges = img.clone();
 	std::vector<my_point> points;
 	
 	// nalezeni rohu
-	get_corneres_and_edges(img, edges, points);
-	printf("bodu: %d\n", (int)points.size());
+	get_corners_and_edges(img, edges, points);
+	printf("bodu: %d\n", static_cast<int>(points.size()));
 	
 	// nalezeni ctvercu
 	std::vector<my_rect> rects;
 	find_all_rects(edges, points, rects);
 	filter_rects(rects, img, pattern);
-	printf("Rects count: %d\n", (int)rects.size());
-	
-	int i,j;
-	float err;
-	for (i=0;i<rects.size();i++){
+	printf("Rects count: %d\n", static_cast<int>(rects.size()));
+
+    int i;
+	for (i = 0; i < rects.size(); i++){
 		draw_rect(img, rects[i]);
 	}
 
