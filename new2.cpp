@@ -166,19 +166,6 @@ inline void get_corners_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_p
 	const float quality = 0.05;
 	const auto min_dist = 10;
 	int points_count;
-	
-	/*cvGoodFeaturesToTrack(img, // vstupni sedobily obraz
-				eig,            // output
-				temp,			  // temp obraz
-				corners,			  // odkaz na pole, kam se maji ulozit bodiky
-				&points_count,		  // odkaz na promennou kde se ma ulozit vysledny pocet nalezenych bodu
-				quality,		  // nastaveni kvality detekce (jak kvalitne musi byt bod detekovan aby byl dan do vystupu)
-				min_dist,		  // minimalni odstup od detekovanych bodu
-				NULL,				  // cert vi ... proste null
-				3,		  // velikost bloku pro vypocet vlastnich cisel
-				false);		  // ma se pri vypoctu pouzit harris detektor?? ne!
-	*/
-	/*************************************************************************/
 
     goodFeaturesToTrack(img, corners, 1000, quality, min_dist);
 
@@ -195,7 +182,7 @@ inline void get_corners_and_edges(cv::Mat &img, cv::Mat &edges, std::vector<my_p
 	edges = 0;
 	printf("Dilatation...");
 	fflush(stdout);
-	my_dilate(out, edges);
+	my_dilate(out, edges, 5);
     imwrite("edges.png", edges);
 	printf("DONE\n");
 	fflush(stdout);
@@ -290,31 +277,22 @@ void find_all_rects(cv::Mat &edges, std::vector<my_point> &points, std::vector<m
 	}
 }
 
-void transform_image(cv::Mat &src, cv::Mat &des, cv::Point *points){
-    cv::Mat input_mat = cv::Mat(4,2,CV_32FC1);
-    cv::Mat output_mat = cv::Mat(4,2,CV_32FC1);
-    cv::Mat H = cv::Mat(3,3,CV_32FC1);
-    
-    output_mat.at<float>(0, 0) = 0.0f;
-    output_mat.at<float>(0, 1) = 0.0f;
-    output_mat.at<float>(1, 0) = des.cols;
-    output_mat.at<float>(1, 1) = 0.0f;
-    output_mat.at<float>(2, 0) = des.cols;
-    output_mat.at<float>(2, 1) = des.rows;
-    output_mat.at<float>(3, 0) = 0.0f;
-    output_mat.at<float>(3, 1) = des.rows;
+void my_transform_image(cv::Mat &src, cv::Mat &des, cv::Point *points){
+    std::vector<cv::Point2f> output_points;
+    std::vector<cv::Point2f> input_points;
 
-    input_mat.at<float>(0, 0) = points[0].x;
-    input_mat.at<float>(0, 1) = points[0].y;
-    input_mat.at<float>(1, 0) = points[1].x;
-    input_mat.at<float>(1, 1) = points[1].y;
-    input_mat.at<float>(2, 0) = points[2].x;
-    input_mat.at<float>(2, 1) = points[2].y;
-    input_mat.at<float>(3, 0) = points[3].x;
-    input_mat.at<float>(3, 1) = points[3].y;
+    output_points.emplace_back(0, 0);
+    output_points.emplace_back(des.cols, 0);
+    output_points.emplace_back(des.cols, des.rows);
+    output_points.emplace_back(0, des.rows);
 
-    findHomography(input_mat, output_mat, H);
-    warpPerspective(src, des, H, cv::Size(des.cols, des.rows));
+    input_points.emplace_back(points[0].x, points[0].y);
+    input_points.emplace_back(points[1].x, points[1].y);
+    input_points.emplace_back(points[2].x, points[2].y);
+    input_points.emplace_back(points[3].x, points[3].y);
+
+    const auto h = findHomography(input_points, output_points);
+    warpPerspective(src, des, h, cv::Size(des.cols, des.rows));
 }
 
 float square_error_sum(cv::Mat &img, cv::Mat &img2){
@@ -335,7 +313,7 @@ float get_error(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 	points[1] = cv::Point(rect->points[1].x,rect->points[1].y);
 	points[2] = cv::Point(rect->points[2].x,rect->points[2].y);
 	points[3] = cv::Point(rect->points[3].x,rect->points[3].y);
-	transform_image(img, data, points);
+	my_transform_image(img, data, points);
 	float err = square_error_sum(pattern, data);
 	err /= data.cols * data.rows;
 	return err;
@@ -348,7 +326,7 @@ float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 	points[1] = cv::Point(rect->points[1].x,rect->points[1].y);
 	points[2] = cv::Point(rect->points[2].x,rect->points[2].y);
 	points[3] = cv::Point(rect->points[3].x,rect->points[3].y);
-	transform_image(img, data, points);
+	my_transform_image(img, data, points);
     auto min_err = square_error_sum(pattern, data);
 	min_err /= data.cols * data.rows;
     auto ack_err = min_err;
@@ -360,11 +338,11 @@ float get_error2(my_rect *rect, cv::Mat &img, cv::Mat &pattern){
 				if (c==a || c==b) continue;
 				for (auto d = 0;d<4;d++){
 					if (d==a || d==b || d==c) continue;
-					points[0] = cv::Point(rect->points[a].x,rect->points[a].y);
-					points[1] = cv::Point(rect->points[b].x,rect->points[b].y);
-					points[2] = cv::Point(rect->points[c].x,rect->points[c].y);
-					points[3] = cv::Point(rect->points[d].x,rect->points[d].y);
-					transform_image(img, data, points);
+					points[0] = cv::Point(rect->points[a].x, rect->points[a].y);
+					points[1] = cv::Point(rect->points[b].x, rect->points[b].y);
+					points[2] = cv::Point(rect->points[c].x, rect->points[c].y);
+					points[3] = cv::Point(rect->points[d].x, rect->points[d].y);
+					my_transform_image(img, data, points);
 					ack_err = square_error_sum(pattern, data);
 					ack_err /= (data.cols * data.rows);
 					if (ack_err < min_err){
@@ -413,7 +391,7 @@ void filter_rects(std::vector<my_rect> &rects, cv::Mat &img, cv::Mat &pattern){
     std::vector<my_rect> temp;
 	printf("We have %d rects to process\n", static_cast<int>(rects.size()));
 	fflush(stdout);
-	for (i=0;i<rects.size();i++){
+	for (i=0; i < rects.size(); i++){
 		float err = get_error2(&rects[i], img, pattern);
 		printf("r: %d Error: %f\n", i, err);
 		printf("a: (%d,%d), b: (%d,%d), c: (%d,%d), d: (%d,%d)\n",
@@ -423,7 +401,7 @@ void filter_rects(std::vector<my_rect> &rects, cv::Mat &img, cv::Mat &pattern){
 			rects[i].points[3].x,rects[i].points[3].y
 		);
 		fflush(stdout);
-		if (err>10000) continue;
+		if (err > 15000) continue;
 		temp.push_back(rects[i]);
 	}
 	rects.clear();
@@ -600,7 +578,7 @@ void find_rect_3D_position(my_rect *rect, cv::Mat &image, double markSize, doubl
 	t[1] = 500;
 	t[2] = 500;
 	t[3] = 500;
-	genetic_algorithm *ga = new genetic_algorithm(1000, 4, getDistError,t);
+    auto ga = new genetic_algorithm(1000, 4, getDistError,t);
 	ga->work_error(0.005, 0.5, 100.0, data, 16);
 	t[0] = ga->best->genes[0];
 	t[1] = ga->best->genes[1];
@@ -705,7 +683,7 @@ int main(){
 	imwrite("RGB_orig.png", imgRGB);
 	printf("Filtering image...");
 	fflush(stdout);
-	pm.filter(imgRGB, 20, 1); // 20, 50
+	pm.filter(imgRGB, 20, 50); // 20, 50
 	printf("DONE\n");
     imwrite("RGB_filter.png", pm.output);
 	cvtColor(pm.output, img, cv::COLOR_RGB2GRAY);

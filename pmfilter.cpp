@@ -59,7 +59,7 @@ void perona_malik::compute_grad(cv::Mat &img){
             this->grad.at<float>(y, x) = std::max(dx,dy);
         }
     }
-    GaussianBlur(this->grad,this->grad, cv::Size(3, 3), 0);
+    //GaussianBlur(this->grad,this->grad, cv::Size(3, 3), 0);
 }
 
 void perona_malik::compute_cond(const float lambda){

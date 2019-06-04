@@ -17,7 +17,7 @@ float get_error(cv::Mat &temp, cv::Mat &obj){
 	return sum/count;
 }
 
-void transform_image(cv::Mat &src, cv::Mat &des, cv::Point *points){
+void identify_my_transform_image(cv::Mat &src, cv::Mat &des, cv::Point *points){
     cv::Mat input_mat = cv::Mat(4, 2, CV_32FC1);
     cv::Mat output_mat = cv::Mat(4, 2, CV_32FC1);
     cv::Mat H = cv::Mat(3, 3, CV_32FC1);
